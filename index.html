@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen Store - Powered by StudioZen</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Firebase Canlı Veritabanı -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --primary: #01875f;
+      --primary-dark: #006648;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-main: #202124;
+      --text-sub: #5f6368;
+      --border-color: #dadce0;
+      --danger: #ea4335;
+      --success: #34a853;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); display: flex; flex-direction: column; min-height: 100vh; }
+
+    header { background-color: #fff; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100; }
+    .nav-container { max-width: 1200px; margin: 0 auto; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; color: var(--primary); cursor: pointer; }
+    
+    .search-bar { flex: 1; min-width: 180px; max-width: 350px; position: relative; }
+    .search-bar input { width: 100%; padding: 8px 14px 8px 38px; border-radius: 20px; border: 1px solid var(--border-color); background: #f1f3f4; outline: none; font-size: 13px; }
+    .search-bar i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); }
+
+    .header-actions { display: flex; align-items: center; gap: 6px; }
+    
+    .btn { padding: 6px 12px; border-radius: 16px; border: none; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .btn-primary { background-color: var(--primary); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+
+    .categories-bar { background: #fff; border-bottom: 1px solid var(--border-color); padding: 0 15px; }
+    .categories-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 15px; overflow-x: auto; }
+    .cat-item { padding: 10px 0; color: var(--text-sub); font-weight: 500; font-size: 13px; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+    .cat-item.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    main { max-width: 1200px; margin: 20px auto; padding: 0 15px; flex: 1; width: 100%; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+    
+    .app-card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; position: relative; transition: transform 0.2s; }
+    .app-card:hover { transform: translateY(-3px); }
+    .app-icon { width: 65px; height: 65px; border-radius: 14px; object-fit: cover; margin-bottom: 8px; }
+    .app-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+    .powered-by { font-size: 10px; color: var(--primary); font-weight: 700; margin-top: 3px; }
+
+    .card-actions { position: absolute; top: 6px; right: 6px; display: none; gap: 4px; z-index: 5; }
+    .card-action-btn { background: var(--danger); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+    .card-action-btn.edit { background: #1a73e8; }
+    body.is-admin .card-actions { display: flex; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; padding: 10px; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 500px; max-height: 85vh; overflow-y: auto; padding: 20px; position: relative; }
+    .close-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 20px; color: var(--text-sub); cursor: pointer; }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; }
+
+    .comment-box { background: #f8f9fa; border-radius: 8px; padding: 8px; margin-top: 6px; border: 1px solid #e0e0e0; }
+    .comment-user { font-weight: 600; font-size: 11px; color: var(--primary); }
+    .comment-text { font-size: 12px; margin-top: 2px; }
+
+    footer { background: #fff; border-top: 1px solid var(--border-color); padding: 12px; text-align: center; color: var(--text-sub); font-size: 11px; margin-top: auto; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav-container">
+      <div class="brand" onclick="switchTab('all')">
+        <i class="fa-brands fa-google-play"></i>
+        <span>Zen Store</span>
+      </div>
+
+      <div class="search-bar">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" placeholder="Uygulama ara..." onkeyup="filterApps()">
+      </div>
+
+      <div class="header-actions">
+        <button class="btn btn-primary" id="adminBtn" onclick="openAdminPortal()">
+          <i class="fa-solid fa-user-shield"></i> <span id="adminBtnText">Admin Girişi</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="categories-bar">
+    <div class="categories-container">
+      <div class="cat-item active" onclick="switchTab('all')">Tümü</div>
+      <div class="cat-item" onclick="switchTab('app')">Uygulamalar</div>
+      <div class="cat-item" onclick="switchTab('game')">Oyunlar</div>
+      <div class="cat-item" onclick="switchTab('tool')">Araçlar</div>
+    </div>
+  </div>
+
+  <main>
+    <div class="section-title">
+      <span>Zen Uygulamaları</span>
+      <span id="adminBadge" style="display:none; color: var(--primary); font-size:11px; font-weight:bold;">[Admin Aktif]</span>
+    </div>
+
+    <div class="app-grid" id="appGrid">
+      <p style="text-align:center; grid-column: 1/-1; color: var(--text-sub);">Uygulamalar yükleniyor...</p>
+    </div>
+  </main>
+
+  <!-- Admin Login Modal -->
+  <div class="modal-overlay" id="adminLoginModal">
+    <div class="modal" style="max-width: 350px;">
+      <button class="close-btn" onclick="closeModal('adminLoginModal')">&times;</button>
+      <h2 style="margin-bottom: 12px; font-size:18px;">Admin Girişi</h2>
+      <form onsubmit="processAdminLogin(event)">
+        <div class="form-group">
+          <label>E-posta</label>
+          <input type="email" id="loginEmail" required placeholder="axmedovaqsin07@gmail.com">
+        </div>
+        <div class="form-group">
+          <label>Şifre</label>
+          <input type="password" id="loginPass" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:10px;">Giriş Yap</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Control Panel (Add App & Manage) -->
+  <div class="modal-overlay" id="adminPanelModal">
+    <div class="modal">
+      <button class="close-btn" onclick="closeModal('adminPanelModal')">&times;</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <h2 style="font-size:18px;" id="panelTitle">Yeni Uygulama Ekle</h2>
+        <button class="btn btn-outline" onclick="logoutAdmin()" style="color:var(--danger)">Çıkış</button>
+      </div>
+
+      <form onsubmit="handleQuickAdd(event)" style="background:#f8f9fa; padding:12px; border-radius:10px; margin-bottom:15px;">
+        <input type="hidden" id="editKey" value="">
+        <div class="form-group">
+          <label>Uygulama Görünür Adı *</label>
+          <input type="text" id="qName" required placeholder="Örn: Diet Pro">
+        </div>
+        <div class="form-group">
+          <label>Kategori *</label>
+          <select id="qCategory">
+            <option value="app">Uygulama</option>
+            <option value="game">Oyun</option>
+            <option value="tool">Araç</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>İkon Dosya Adı (GitHub 'icons' klasöründeki) *</label>
+          <input type="text" id="qIcon" placeholder="Örn: diet_pro.png" required>
+        </div>
+        <div class="form-group">
+          <label>APK Dosya Adı (GitHub 'apps' klasöründeki) *</label>
+          <input type="text" id="qDownloadUrl" placeholder="Örn: diet_pro.apk" required>
+        </div>
+        <div class="form-group">
+          <label>Açıklama *</label>
+          <textarea id="qDesc" rows="2" required placeholder="Uygulama hakkında bilgi..."></textarea>
+        </div>
+        <button type="submit" id="submitAppBtn" class="btn btn-success" style="width:100%; justify-content:center; padding:10px;">Sitede Yayınla</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Detail & Comments View -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <button class="close-btn" onclick="closeModal('detailModal')">&times;</button>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Zen Store - Powered by StudioZen</p>
+  </footer>
+
+  <script>
+    const firebaseConfig = {
+      databaseURL: "https://zen--store-default-rtdb.europe-west1.firebasedatabase.app"
+    };
+    
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
+    // GitHub Otomatik Klasör Yolları
+    const GITHUB_BASE = "https://7-cloud.github.io/";
+
+    let publishedApps = {};
+    let isAdmin = false;
+    let currentCategory = 'all';
+
+    db.ref("published_apps").on("value", snapshot => {
+      publishedApps = snapshot.val() || {};
+      renderApps();
+    });
+
+    function getFullUrl(file, type) {
+      if (!file) return "";
+      if (file.startsWith("http://") || file.startsWith("https://")) return file;
+      return type === 'icon' ? GITHUB_BASE + "icons/" + file : GITHUB_BASE + "apps/" + file;
+    }
+
+    function renderApps() {
+      const grid = document.getElementById("appGrid");
+      grid.innerHTML = "";
+      const keys = Object.keys(publishedApps);
+      
+      if (keys.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: var(--text-sub);">Henüz yayınlanan uygulama yok.</p>';
+        return;
+      }
+
+      keys.forEach(key => {
+        const app = publishedApps[key];
+        if (currentCategory !== 'all' && app.category !== currentCategory) return;
+
+        const iconUrl = getFullUrl(app.icon, 'icon');
+
+        const card = document.createElement("div");
+        card.className = "app-card";
+        card.onclick = (e) => {
+          if (!e.target.closest('.card-action-btn')) {
+            openAppDetail(key);
+          }
+        };
+
+        card.innerHTML = `
+          <div class="card-actions">
+            <button class="card-action-btn edit" onclick="openEditAppModal(event, '${key}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="card-action-btn" onclick="deleteAppInstantly(event, '${key}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <img src="${iconUrl}" class="app-icon" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2583/2583344.png'">
+          <div class="app-name">${app.name}</div>
+          <div class="powered-by">Powered by StudioZen</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function deleteAppInstantly(e, key) {
+      e.stopPropagation();
+      if (confirm("Bu uygulamayı silmek istediğinize emin misiniz?")) {
+        db.ref("published_apps/" + key).remove();
+      }
+    }
+
+    function openEditAppModal(e, key) {
+      e.stopPropagation();
+      const app = publishedApps[key];
+      if (!app) return;
+
+      document.getElementById("editKey").value = key;
+      document.getElementById("qName").value = app.name || "";
+      document.getElementById("qCategory").value = app.category || "app";
+      document.getElementById("qIcon").value = app.icon || "";
+      document.getElementById("qDownloadUrl").value = app.downloadUrl || "";
+      document.getElementById("qDesc").value = app.desc || "";
+
+      document.getElementById("panelTitle").innerText = "Uygulamayı Düzenle";
+      document.getElementById("submitAppBtn").innerText = "Değişiklikleri Kaydet";
+      openModal("adminPanelModal");
+    }
+
+    function handleQuickAdd(e) {
+      e.preventDefault();
+      const editKey = document.getElementById("editKey").value;
+      const appData = {
+        name: document.getElementById("qName").value,
+        category: document.getElementById("qCategory").value,
+        icon: document.getElementById("qIcon").value,
+        downloadUrl: document.getElementById("qDownloadUrl").value,
+        desc: document.getElementById("qDesc").value
+      };
+
+      if (editKey) {
+        db.ref("published_apps/" + editKey).update(appData);
+        alert("Uygulama başarıyla güncellendi!");
+      } else {
+        db.ref("published_apps").push(appData);
+        alert("Uygulama başarıyla eklendi!");
+      }
+
+      resetForm();
+      closeModal("adminPanelModal");
+    }
+
+    function resetForm() {
+      document.getElementById("editKey").value = "";
+      document.getElementById("qName").value = "";
+      document.getElementById("qIcon").value = "";
+      document.getElementById("qDownloadUrl").value = "";
+      document.getElementById("qDesc").value = "";
+      document.getElementById("panelTitle").innerText = "Yeni Uygulama Ekle";
+      document.getElementById("submitAppBtn").innerText = "Sitede Yayınla";
+    }
+
+    function openAppDetail(key) {
+      const app = publishedApps[key];
+      if (!app) return;
+
+      const iconUrl = getFullUrl(app.icon, 'icon');
+      const downloadUrl = getFullUrl(app.downloadUrl, 'app');
+
+      const comments = app.comments || {};
+      let commentsHtml = "";
+      Object.keys(comments).forEach(cKey => {
+        const c = comments[cKey];
+        commentsHtml += `<div class="comment-box"><div class="comment-user">${c.user}</div><div class="comment-text">${c.text}</div></div>`;
+      });
+
+      document.getElementById("detailContent").innerHTML = `
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+          <img src="${iconUrl}" style="width:60px; height:60px; border-radius:14px;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2583/2583344.png'">
+          <div>
+            <h3 style="font-size:16px;">${app.name}</h3>
+            <span style="color:var(--primary); font-weight:bold; font-size:11px;">Powered by StudioZen</span>
+          </div>
+        </div>
+        <p style="margin-bottom:12px; color:var(--text-sub); font-size:13px;">${app.desc}</p>
+        <a href="${downloadUrl}" download target="_self" class="btn btn-primary" style="width:100%; justify-content:center; text-decoration:none; padding:10px; margin-bottom:15px;">
+          <i class="fa-solid fa-download"></i> Direkt İndir (.APK)
+        </a>
+        <hr style="border:0; border-top:1px solid #eee; margin-bottom:12px;">
+        <h4 style="font-size:13px; margin-bottom:8px;">Yorumlar</h4>
+        <div style="max-height:120px; overflow-y:auto; margin-bottom:12px;">${commentsHtml || '<p style="font-size:11px; color:var(--text-sub);">Henüz yorum yok.</p>'}</div>
+        <form onsubmit="addComment(event, '${key}')">
+          <input type="text" id="commentUser" placeholder="Adınız" required style="padding:6px; margin-bottom:6px; width:100%; font-size:12px;">
+          <input type="text" id="commentText" placeholder="Yorum yazın..." required style="padding:6px; margin-bottom:6px; width:100%; font-size:12px;">
+          <button type="submit" class="btn btn-outline" style="width:100%; justify-content:center;">Gönder</button>
+        </form>
+      `;
+      openModal("detailModal");
+    }
+
+    function addComment(e, appKey) {
+      e.preventDefault();
+      db.ref(`published_apps/${appKey}/comments`).push({
+        user: document.getElementById("commentUser").value,
+        text: document.getElementById("commentText").value
+      });
+      alert("Yorum eklendi!");
+      openAppDetail(appKey);
+    }
+
+    function openAdminPortal() {
+      if (isAdmin) {
+        resetForm();
+        openModal("adminPanelModal");
+      } else {
+        openModal("adminLoginModal");
+      }
+    }
+
+    function processAdminLogin(e) {
+      e.preventDefault();
+      const em = document.getElementById("loginEmail").value.trim();
+      const pass = document.getElementById("loginPass").value.trim();
+
+      if (em === "axmedovaqsin07@gmail.com" && pass === "2014_aksin") {
+        isAdmin = true;
+        document.body.classList.add("is-admin");
+        document.getElementById("adminBadge").style.display = "inline";
+        document.getElementById("adminBtnText").innerText = "Admin Paneli";
+        closeModal("adminLoginModal");
+        resetForm();
+        openModal("adminPanelModal");
+      } else {
+        alert("Hatalı e-posta veya şifre!");
+      }
+    }
+
+    function logoutAdmin() {
+      isAdmin = false;
+      document.body.classList.remove("is-admin");
+      document.getElementById("adminBadge").style.display = "none";
+      document.getElementById("adminBtnText").innerText = "Admin Girişi";
+      closeModal("adminPanelModal");
+    }
+
+    function switchTab(cat) {
+      currentCategory = cat;
+      document.querySelectorAll(".cat-item").forEach(el => el.classList.remove("active"));
+      event.target.classList.add("active");
+      renderApps();
+    }
+
+    function filterApps() {
+      const q = document.getElementById("searchInput").value.toLowerCase();
+      const grid = document.getElementById("appGrid");
+      grid.innerHTML = "";
+      
+      const keys = Object.keys(publishedApps);
+      const filtered = keys.filter(k => publishedApps[k] && (publishedApps[k].name.toLowerCase().includes(q) || publishedApps[k].desc.toLowerCase().includes(q)));
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: var(--text-sub);">Uygulama bulunamadı.</p>';
+        return;
+      }
+
+      filtered.forEach(key => {
+        const app = publishedApps[key];
+        const iconUrl = getFullUrl(app.icon, 'icon');
+        const card = document.createElement("div");
+        card.className = "app-card";
+        card.onclick = (e) => {
+          if (!e.target.closest('.card-action-btn')) {
+            openAppDetail(key);
+          }
+        };
+        card.innerHTML = `
+          <div class="card-actions">
+            <button class="card-action-btn edit" onclick="openEditAppModal(event, '${key}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="card-action-btn" onclick="deleteAppInstantly(event, '${key}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <img src="${iconUrl}" class="app-icon" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2583/2583344.png'">
+          <div class="app-name">${app.name}</div>
+          <div class="powered-by">Powered by StudioZen</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add("active"); }
+    function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+  </script>
+</body>
+  </html>
